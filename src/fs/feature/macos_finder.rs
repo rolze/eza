@@ -48,47 +48,59 @@ fn attr_value<'a>(attrs: &'a [Attribute], name: &str) -> Option<&'a [u8]> {
         .and_then(|a| a.value.as_deref())
 }
 
-/// Minimal binary plist parser for the specific format of `_kMDItemUserTags`.
-/// Format: "bplist00" magic + array of short UTF-8 strings "TagName\nN".
+/// Binary plist parser for `_kMDItemUserTags`.
+///
+/// macOS stores tags as a bplist00 containing an array of UTF-8 strings of the
+/// form "TagName\nN" where N is a color index 1–7. The array holds object
+/// *references* (not inline objects), so we must follow the 32-byte trailer to
+/// locate the offset table and resolve each reference to its string object.
 fn parse_tag_color(data: &[u8]) -> Option<u8> {
-    // Must start with bplist00
-    if data.len() < 9 || &data[..8] != b"bplist00" {
+    // 32-byte trailer + magic + at least one object
+    if data.len() < 40 || &data[..8] != b"bplist00" {
         return None;
     }
-    let mut pos = 8;
 
-    // Expect array marker 0xAx (x = element count, for small arrays)
-    let marker = *data.get(pos)?;
-    if (marker & 0xF0) != 0xA0 {
+    // --- trailer (last 32 bytes) ---
+    let t = data.len() - 32;
+    let offset_size = data[t + 6] as usize; // bytes per offset-table entry
+    let ref_size = data[t + 7] as usize;    // bytes per object reference
+    let num_objects = read_uint_be(data.get(t + 8..t + 16)?)? as usize;
+    let top_object = read_uint_be(data.get(t + 16..t + 24)?)? as usize;
+    let ot_start = read_uint_be(data.get(t + 24..t + 32)?)? as usize;
+
+    if offset_size == 0 || ref_size == 0 || offset_size > 8 || ref_size > 8 {
         return None;
     }
-    let count = (marker & 0x0F) as usize;
-    pos += 1;
 
-    for _ in 0..count {
-        let str_marker = *data.get(pos)?;
-        if (str_marker & 0xF0) != 0x50 {
-            // Skip non-string objects
-            pos += 1;
-            continue;
+    // Resolve object index → byte offset in data
+    let obj_offset = |idx: usize| -> Option<usize> {
+        if idx >= num_objects {
+            return None;
         }
-        let str_len = if (str_marker & 0x0F) == 0x0F {
-            // Extended length: next byte is 0x10, byte after is length
-            if data.get(pos + 1).copied() != Some(0x10) {
-                return None;
-            }
-            let l = *data.get(pos + 2)? as usize;
-            pos += 3;
-            l
-        } else {
-            let l = (str_marker & 0x0F) as usize;
-            pos += 1;
-            l
-        };
+        let pos = ot_start + idx * offset_size;
+        read_uint_be(data.get(pos..pos + offset_size)?).map(|v| v as usize)
+    };
 
-        let end = pos.checked_add(str_len)?;
-        let str_bytes = data.get(pos..end)?;
-        pos = end;
+    // Root object must be an array
+    let root = obj_offset(top_object)?;
+    let array_marker = *data.get(root)?;
+    if (array_marker & 0xF0) != 0xA0 {
+        return None;
+    }
+    let count = (array_marker & 0x0F) as usize;
+
+    // Walk array elements: each is a ref_size-byte index into the object table
+    for i in 0..count {
+        let ref_pos = root + 1 + i * ref_size;
+        let obj_ref = read_uint_be(data.get(ref_pos..ref_pos + ref_size)?)? as usize;
+        let str_off = obj_offset(obj_ref)?;
+
+        let str_marker = *data.get(str_off)?;
+        if (str_marker & 0xF0) != 0x50 {
+            continue; // not a UTF-8 string
+        }
+        let str_len = (str_marker & 0x0F) as usize;
+        let str_bytes = data.get(str_off + 1..str_off + 1 + str_len)?;
 
         // Tag string is "TagName\nN" — color index is the last byte
         if let Some(&digit) = str_bytes.last() {
@@ -98,6 +110,17 @@ fn parse_tag_color(data: &[u8]) -> Option<u8> {
         }
     }
     None
+}
+
+/// Read a 1-, 2-, 4-, or 8-byte big-endian unsigned integer.
+fn read_uint_be(bytes: &[u8]) -> Option<u64> {
+    Some(match bytes.len() {
+        1 => bytes[0] as u64,
+        2 => u16::from_be_bytes(bytes.try_into().ok()?) as u64,
+        4 => u32::from_be_bytes(bytes.try_into().ok()?) as u64,
+        8 => u64::from_be_bytes(bytes.try_into().ok()?),
+        _ => return None,
+    })
 }
 
 /// Extracts the value of the `sym` field from `{"sym":"<name>"}`.
