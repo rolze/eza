@@ -24,9 +24,18 @@ impl Render for Option<f::User> {
         };
         #[rustfmt::skip]
         let user_name = match (format, users.get_user_by_uid(uid)) {
-            (_, None)                      => uid.to_string(),
-            (UserFormat::Numeric, _)       => uid.to_string(),
-            (UserFormat::Name, Some(user)) => user.name().to_string_lossy().into(),
+            (_, None)                               => uid.to_string(),
+            (UserFormat::Numeric, _)                => uid.to_string(),
+            (UserFormat::Name, Some(user))          => user.name().to_string_lossy().into(),
+            (UserFormat::Truncated(n), Some(user))  => {
+                let name: String = user.name().to_string_lossy().into();
+                if name.chars().count() > n {
+                    let truncated: String = name.chars().take(n).collect();
+                    format!("{truncated}…")
+                } else {
+                    name
+                }
+            }
         };
 
         let style = if users.get_current_uid() == uid {
