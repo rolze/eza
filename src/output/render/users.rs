@@ -146,4 +146,55 @@ pub mod test {
             )
         );
     }
+
+    #[test]
+    fn truncated_short() {
+        let mut users = MockUsers::with_current_uid(1000);
+        users.add_user(User::new(1000, "ada", 100));
+
+        let user = Some(f::User(1000));
+        let expected = TextCell::paint_str(Red.bold(), "ada");
+        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(8)));
+    }
+
+    #[test]
+    fn truncated_exact() {
+        let mut users = MockUsers::with_current_uid(1000);
+        users.add_user(User::new(1000, "enoch", 100));
+
+        let user = Some(f::User(1000));
+        let expected = TextCell::paint_str(Red.bold(), "enoch");
+        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(5)));
+    }
+
+    #[test]
+    fn truncated_long() {
+        let mut users = MockUsers::with_current_uid(1000);
+        users.add_user(User::new(1000, "roland.wohlfahrt", 100));
+
+        let user = Some(f::User(1000));
+        let expected = TextCell::paint_str(Red.bold(), "roland…");
+        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(6)));
+    }
+
+    #[test]
+    fn truncated_unicode() {
+        let mut users = MockUsers::with_current_uid(1000);
+        users.add_user(User::new(1000, "こんにちは", 100));
+
+        let user = Some(f::User(1000));
+        // truncated at char boundary, not byte boundary
+        let expected = TextCell::paint_str(Red.bold(), "こんに…");
+        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(3)));
+    }
+
+    #[test]
+    fn truncated_unknown_uid() {
+        let users = MockUsers::with_current_uid(0);
+
+        let user = Some(f::User(1000));
+        // unknown UID falls through to numeric regardless of format
+        let expected = TextCell::paint_str(Blue.underline(), "1000");
+        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(4)));
+    }
 }

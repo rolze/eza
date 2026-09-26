@@ -709,6 +709,14 @@ mod tests {
     }
 
     #[test]
+    fn deduce_user_format_truncated() {
+        assert_eq!(
+            UserFormat::deduce(&mock_cli(vec!["--user-length", "8"])),
+            UserFormat::Truncated(8)
+        );
+    }
+
+    #[test]
     fn deduce_size_format_off() {
         assert_eq!(
             SizeFormat::deduce(&mock_cli(vec![""])),
