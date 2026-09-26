@@ -26,7 +26,7 @@ impl Options {
 
         let absolute = *matches.get_one("absolute").unwrap();
         let short_nix = matches.get_flag("short-nix");
-        let finder_meta = matches.get_flag("finder");
+        let finder_meta = matches.get_flag("finder-meta");
 
         Ok(Self {
             classify,

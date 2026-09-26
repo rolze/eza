@@ -128,7 +128,7 @@ impl Mode {
             "time",
             "group",
             "numeric",
-            "finder",
+            "finder-meta",
             "mounts",
             "loc",
         ] {
