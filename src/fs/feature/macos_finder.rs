@@ -425,3 +425,153 @@ static SF_SYMBOL_MAP: phf::Map<&'static str, char> = phf_map! {
     "wand.and.stars.inverse"        => '✨',
     "wand.and.stars"                => '✨',
 };
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        SYMBOL_XATTR, TAG_XATTR, finder_symbol_char, finder_tag_color, finder_tag_style,
+        parse_tag_color,
+    };
+    use crate::fs::feature::xattr::Attribute;
+    use nu_ansi_term::{Color, Style};
+
+    fn attr(name: &str, value: &[u8]) -> Attribute {
+        Attribute {
+            name: name.to_string(),
+            value: Some(value.to_vec()),
+        }
+    }
+
+    // Minimal bplist00: array of one string "2" (tag color Green)
+    //
+    // Layout (46 bytes):
+    //   [0..8]  magic "bplist00"
+    //   [8]     0xA1  array marker (1 element)
+    //   [9]     0x01  element ref → object 1
+    //   [10]    0x51  string marker (1 char)
+    //   [11]    b'2'  string content
+    //   [12]    0x08  offset table: obj 0 at byte 8
+    //   [13]    0x0A  offset table: obj 1 at byte 10
+    //   [14..46] 32-byte trailer
+    const BPLIST_TAG2: &[u8] = &[
+        b'b', b'p', b'l', b'i', b's', b't', b'0', b'0', // magic
+        0xA1, 0x01,       // array(1), ref=1
+        0x51, b'2',       // string(1) = "2"
+        0x08, 0x0A,       // offset table
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // trailer padding
+        0x01,             // offset_size = 1
+        0x01,             // ref_size = 1
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, // num_objects = 2
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // top_object = 0
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, // ot_start = 12
+    ];
+
+    // Same layout but string content is "none" — no digit '1'–'7' as last byte
+    const BPLIST_NO_DIGIT: &[u8] = &[
+        b'b', b'p', b'l', b'i', b's', b't', b'0', b'0',
+        0xA1, 0x01,
+        0x54, b'n', b'o', b'n', b'e', // string(4) = "none"
+        0x08, 0x0A,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01, 0x01,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C,
+    ];
+
+    // --- parse_tag_color ---
+
+    #[test]
+    fn tag_color_valid() {
+        assert_eq!(parse_tag_color(BPLIST_TAG2), Some(2));
+    }
+
+    #[test]
+    fn tag_color_wrong_magic() {
+        let mut bad = BPLIST_TAG2.to_vec();
+        bad[0] = b'x';
+        assert_eq!(parse_tag_color(&bad), None);
+    }
+
+    #[test]
+    fn tag_color_too_short() {
+        assert_eq!(parse_tag_color(&BPLIST_TAG2[..39]), None);
+    }
+
+    #[test]
+    fn tag_color_no_digit() {
+        assert_eq!(parse_tag_color(BPLIST_NO_DIGIT), None);
+    }
+
+    // --- finder_tag_color (via Attribute slice) ---
+
+    #[test]
+    fn finder_tag_color_present() {
+        let attrs = vec![attr(TAG_XATTR, BPLIST_TAG2)];
+        assert_eq!(finder_tag_color(&attrs), Some(2));
+    }
+
+    #[test]
+    fn finder_tag_color_absent() {
+        assert_eq!(finder_tag_color(&[]), None);
+    }
+
+    // --- finder_symbol_char ---
+
+    #[test]
+    fn symbol_known() {
+        let attrs = vec![attr(SYMBOL_XATTR, br#"{"sym":"hammer.fill"}"#)];
+        assert_eq!(finder_symbol_char(&attrs), Some('🔨'));
+    }
+
+    #[test]
+    fn symbol_unknown_falls_back_to_diamond() {
+        let attrs = vec![attr(SYMBOL_XATTR, br#"{"sym":"nonexistent.symbol"}"#)];
+        assert_eq!(finder_symbol_char(&attrs), Some('◆'));
+    }
+
+    #[test]
+    fn symbol_malformed_json() {
+        let attrs = vec![attr(SYMBOL_XATTR, b"not json at all")];
+        assert_eq!(finder_symbol_char(&attrs), None);
+    }
+
+    #[test]
+    fn symbol_missing_key() {
+        let attrs = vec![attr(SYMBOL_XATTR, br#"{"other":"value"}"#)];
+        assert_eq!(finder_symbol_char(&attrs), None);
+    }
+
+    #[test]
+    fn symbol_absent() {
+        assert_eq!(finder_symbol_char(&[]), None);
+    }
+
+    // --- finder_tag_style ---
+
+    #[test]
+    fn tag_style_gray() {
+        assert_eq!(finder_tag_style(1), Style::new().fg(Color::DarkGray));
+    }
+
+    #[test]
+    fn tag_style_green() {
+        assert_eq!(finder_tag_style(2), Style::new().fg(Color::Green));
+    }
+
+    #[test]
+    fn tag_style_red() {
+        assert_eq!(finder_tag_style(6), Style::new().fg(Color::Red));
+    }
+
+    #[test]
+    fn tag_style_orange() {
+        assert_eq!(finder_tag_style(7), Style::new().fg(Color::Fixed(208)));
+    }
+
+    #[test]
+    fn tag_style_unknown() {
+        assert_eq!(finder_tag_style(0), Style::default());
+        assert_eq!(finder_tag_style(8), Style::default());
+    }
+}
