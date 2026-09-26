@@ -278,6 +278,7 @@ mod tests {
                 absolute: Absolute::Off,
                 short_nix: false,
                 is_a_tty: true,
+                finder_meta: false,
             })
         );
     }
