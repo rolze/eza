@@ -63,7 +63,7 @@ fn parse_tag_color(data: &[u8]) -> Option<u8> {
     // --- trailer (last 32 bytes) ---
     let t = data.len() - 32;
     let offset_size = data[t + 6] as usize; // bytes per offset-table entry
-    let ref_size = data[t + 7] as usize;    // bytes per object reference
+    let ref_size = data[t + 7] as usize; // bytes per object reference
     let num_objects = read_uint_be(data.get(t + 8..t + 16)?)? as usize;
     let top_object = read_uint_be(data.get(t + 16..t + 24)?)? as usize;
     let ot_start = read_uint_be(data.get(t + 24..t + 32)?)? as usize;
@@ -455,12 +455,12 @@ mod tests {
     //   [14..46] 32-byte trailer
     const BPLIST_TAG2: &[u8] = &[
         b'b', b'p', b'l', b'i', b's', b't', b'0', b'0', // magic
-        0xA1, 0x01,       // array(1), ref=1
-        0x51, b'2',       // string(1) = "2"
-        0x08, 0x0A,       // offset table
+        0xA1, 0x01, // array(1), ref=1
+        0x51, b'2', // string(1) = "2"
+        0x08, 0x0A, // offset table
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // trailer padding
-        0x01,             // offset_size = 1
-        0x01,             // ref_size = 1
+        0x01, // offset_size = 1
+        0x01, // ref_size = 1
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, // num_objects = 2
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // top_object = 0
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, // ot_start = 12
@@ -468,15 +468,11 @@ mod tests {
 
     // Same layout but string content is "none" — no digit '1'–'7' as last byte
     const BPLIST_NO_DIGIT: &[u8] = &[
-        b'b', b'p', b'l', b'i', b's', b't', b'0', b'0',
-        0xA1, 0x01,
-        0x54, b'n', b'o', b'n', b'e', // string(4) = "none"
-        0x08, 0x0A,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x01, 0x01,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C,
+        b'b', b'p', b'l', b'i', b's', b't', b'0', b'0', 0xA1, 0x01, 0x54, b'n', b'o', b'n',
+        b'e', // string(4) = "none"
+        0x08, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x0C,
     ];
 
     // --- parse_tag_color ---
