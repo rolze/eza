@@ -154,7 +154,10 @@ pub mod test {
 
         let user = Some(f::User(1000));
         let expected = TextCell::paint_str(Red.bold(), "ada");
-        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(8)));
+        assert_eq!(
+            expected,
+            user.render(&TestColours, &users, UserFormat::Truncated(8))
+        );
     }
 
     #[test]
@@ -164,7 +167,10 @@ pub mod test {
 
         let user = Some(f::User(1000));
         let expected = TextCell::paint_str(Red.bold(), "enoch");
-        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(5)));
+        assert_eq!(
+            expected,
+            user.render(&TestColours, &users, UserFormat::Truncated(5))
+        );
     }
 
     #[test]
@@ -174,7 +180,10 @@ pub mod test {
 
         let user = Some(f::User(1000));
         let expected = TextCell::paint_str(Red.bold(), "roland…");
-        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(6)));
+        assert_eq!(
+            expected,
+            user.render(&TestColours, &users, UserFormat::Truncated(6))
+        );
     }
 
     #[test]
@@ -185,7 +194,10 @@ pub mod test {
         let user = Some(f::User(1000));
         // truncated at char boundary, not byte boundary
         let expected = TextCell::paint_str(Red.bold(), "こんに…");
-        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(3)));
+        assert_eq!(
+            expected,
+            user.render(&TestColours, &users, UserFormat::Truncated(3))
+        );
     }
 
     #[test]
@@ -195,6 +207,9 @@ pub mod test {
         let user = Some(f::User(1000));
         // unknown UID falls through to numeric regardless of format
         let expected = TextCell::paint_str(Blue.underline(), "1000");
-        assert_eq!(expected, user.render(&TestColours, &users, UserFormat::Truncated(4)));
+        assert_eq!(
+            expected,
+            user.render(&TestColours, &users, UserFormat::Truncated(4))
+        );
     }
 }
