@@ -103,7 +103,9 @@ fn parse_tag_color(data: &[u8]) -> Option<u8> {
         let str_bytes = data.get(str_off + 1..str_off + 1 + str_len)?;
 
         // Tag string is "TagName\nN" — color index is the last byte
-        if let Some(&digit) = str_bytes.last() && (b'1'..=b'7').contains(&digit) {
+        if let Some(&digit) = str_bytes.last()
+            && (b'1'..=b'7').contains(&digit)
+        {
             return Some(digit - b'0');
         }
     }
