@@ -103,10 +103,8 @@ fn parse_tag_color(data: &[u8]) -> Option<u8> {
         let str_bytes = data.get(str_off + 1..str_off + 1 + str_len)?;
 
         // Tag string is "TagName\nN" — color index is the last byte
-        if let Some(&digit) = str_bytes.last() {
-            if (b'1'..=b'7').contains(&digit) {
-                return Some(digit - b'0');
-            }
+        if let Some(&digit) = str_bytes.last() && (b'1'..=b'7').contains(&digit) {
+            return Some(digit - b'0');
         }
     }
     None
@@ -131,8 +129,7 @@ fn extract_sym_field(json: &str) -> Option<&str> {
     let after_key = &json[key_pos + key.len()..];
     let colon = after_key.find(':')? + 1;
     let after_colon = after_key[colon..].trim_start();
-    if after_colon.starts_with('"') {
-        let inner = &after_colon[1..];
+    if let Some(inner) = after_colon.strip_prefix('"') {
         let end = inner.find('"')?;
         Some(&inner[..end])
     } else {
